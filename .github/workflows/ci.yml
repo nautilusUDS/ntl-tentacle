@@ -1,0 +1,24 @@
+name: ntl-tentacle CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rust-tests:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Rust Check (Format)
+        run: cargo fmt --check
+      - name: Rust Check (Clippy)
+        run: cargo clippy -- -D warnings
+      - name: Run Tests
+        run: cargo test
