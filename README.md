@@ -25,7 +25,7 @@ Configuration is handled via environment variables:
 
 ### Prerequisites
 
-- Rust 1.80+ (for building from source)
+- Rust 1.85+ (for building from source)
 - Docker (optional)
 
 ### Building from Source

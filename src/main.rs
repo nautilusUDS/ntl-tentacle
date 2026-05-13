@@ -1,5 +1,10 @@
+#[cfg(not(unix))]
+compile_error!("This project is only supported on Unix systems.");
+
 mod config;
+mod metrics;
 mod relay;
+mod tracked_stream;
 
 use anyhow::Result;
 
