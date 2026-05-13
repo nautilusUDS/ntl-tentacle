@@ -9,6 +9,7 @@ pub struct Config {
     pub socket_name: String,
     pub base_dir: PathBuf,
     pub max_connections: usize,
+    pub metrics_interval_secs: u64,
 }
 
 impl Config {
@@ -45,12 +46,18 @@ impl Config {
             .parse()
             .unwrap_or(1024);
 
+        let metrics_interval_secs = env::var("NAUTILUS_METRICS_INTERVAL_SECS")
+            .unwrap_or_else(|_| "15".to_string())
+            .parse()
+            .unwrap_or(15);
+
         let cfg = Self {
             service_name,
             target_addr,
             socket_name,
             base_dir,
             max_connections,
+            metrics_interval_secs,
         };
 
         tracing::info!(
@@ -58,6 +65,7 @@ impl Config {
             target = %cfg.target_addr,
             socket = ?cfg.socket_path(),
             max_conns = cfg.max_connections,
+            metrics_interval = cfg.metrics_interval_secs,
             "configuration loaded"
         );
 

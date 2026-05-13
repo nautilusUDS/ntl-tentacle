@@ -1,33 +1,72 @@
 use crate::config::Config;
-#[cfg(unix)]
+use crate::metrics::MetricsManager;
+use crate::tracked_stream::TrackedStream;
 use anyhow::Context;
 use anyhow::Result;
-#[cfg(unix)]
 use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
-#[cfg(unix)]
 use tokio::io::copy_bidirectional;
 use tokio::net::TcpStream;
-#[cfg(unix)]
-use tokio::net::UnixListener;
-use tokio::sync::{watch, Semaphore};
+use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::{Semaphore, watch};
 use tokio::time::interval;
-#[cfg(unix)]
 use tracing::error;
 use tracing::{debug, info, warn};
 
 pub struct Relay {
     cfg: Arc<Config>,
     pool: Arc<Semaphore>,
+    metrics: Arc<MetricsManager>,
 }
 
 impl Relay {
     pub fn new(cfg: Config) -> Self {
         let max_conn = cfg.max_connections;
+        let metrics = Arc::new(MetricsManager::new(
+            "tentacle-1".to_string(), // Should be configured or derived
+            cfg.service_name.clone(),
+        ));
         Self {
             cfg: Arc::new(cfg),
             pool: Arc::new(Semaphore::new(max_conn)),
+            metrics,
+        }
+    }
+
+    fn spawn_reporter(&self) {
+        let metrics = self.metrics.clone();
+        let socket_path = "/var/run/nautilus/services/metrics.sock".to_string();
+        let mut metrics_interval = interval(Duration::from_secs(self.cfg.metrics_interval_secs));
+
+        tokio::spawn(async move {
+            loop {
+                metrics_interval.tick().await;
+
+                if let Err(e) = Self::push_metrics_once(&metrics, &socket_path).await {
+                    debug!(error = ?e, "metrics push skipped or failed, data will accumulate");
+                }
+            }
+        });
+    }
+
+    async fn push_metrics_once(metrics: &Arc<MetricsManager>, path: &str) -> Result<()> {
+        let snap = metrics.take_snapshot();
+        let data = MetricsManager::encode_to_binary(&snap);
+
+        match UnixStream::connect(path).await {
+            Ok(mut stream) => {
+                use tokio::io::AsyncWriteExt;
+                stream
+                    .write_all(&data)
+                    .await
+                    .context("failed to write to metrics socket")?;
+
+                metrics.commit_sent_metrics(&snap);
+                debug!("metrics successfully pushed to nautilus");
+                Ok(())
+            }
+            Err(e) => Err(anyhow::anyhow!("metrics socket unavailable: {}", e)),
         }
     }
 
@@ -35,6 +74,8 @@ impl Relay {
         let mut check_interval = interval(Duration::from_secs(2));
         let mut active_handle: Option<tokio::task::JoinHandle<()>> = None;
         let (stop_tx, _stop_rx) = watch::channel(());
+
+        self.spawn_reporter();
 
         info!(
             target = %self.cfg.target_addr,
@@ -52,18 +93,13 @@ impl Relay {
                 info!(target = %self.cfg.target_addr, "target online, starting listener");
                 let cfg = self.cfg.clone();
                 let pool = self.pool.clone();
+                let _metrics = self.metrics.clone();
                 let stop_rx = _stop_rx.clone();
 
                 active_handle = Some(tokio::spawn(async move {
                     #[cfg(unix)]
-                    if let Err(e) = run_uds_listener(cfg, pool, stop_rx).await {
+                    if let Err(e) = run_uds_listener(cfg, pool, _metrics, stop_rx).await {
                         error!(error = ?e, "uds listener failure");
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        let _ = (cfg, pool, stop_rx);
-                        warn!("uds listener is only supported on unix systems");
-                        tokio::time::sleep(Duration::from_secs(3600)).await;
                     }
                 }));
             } else if !is_alive && active_handle.is_some() {
@@ -97,10 +133,10 @@ impl Relay {
     }
 }
 
-#[cfg(unix)]
 async fn run_uds_listener(
     cfg: Arc<Config>,
     pool: Arc<Semaphore>,
+    metrics: Arc<MetricsManager>,
     mut stop_rx: watch::Receiver<()>,
 ) -> Result<()> {
     let socket_path = cfg.socket_path();
@@ -148,9 +184,10 @@ async fn run_uds_listener(
         tokio::select! {
             accept_res = listener.accept() => {
                 match accept_res {
-                    Ok((mut uds_stream, addr)) => {
+                    Ok((uds_stream, addr)) => {
                         let pool = pool.clone();
                         let target_addr = cfg.target_addr.clone();
+                        let metrics = metrics.clone();
 
                         // Acquire permit from connection pool
                         // If pool is full, this will wait (queue) until a spot opens
@@ -171,17 +208,30 @@ async fn run_uds_listener(
                         tokio::spawn(async move {
                             // Move permit into spawn to keep it alive for the duration of the connection
                             let _permit = permit;
+                            let start = std::time::Instant::now();
+                            metrics.add_active_connection();
 
                             match TcpStream::connect(&target_addr).await {
                                 Ok(mut tcp_stream) => {
+                                    let mut tracked_uds_stream = TrackedStream::new(uds_stream, metrics.clone());
+
                                     debug!(target = %target_addr, "relaying stream");
-                                    if let Err(e) = copy_bidirectional(&mut uds_stream, &mut tcp_stream).await {
+                                    metrics.add_attempts_total();
+                                    let latency_us = start.elapsed().as_micros() as u64;
+                                    MetricsManager::observe_duration(&metrics.transport_latency_seconds, latency_us);
+
+                                    if let Err(e) = copy_bidirectional(&mut tracked_uds_stream, &mut tcp_stream).await {
                                         debug!(error = ?e, "connection closed");
                                     }
+
                                 }
-                                Err(e) => error!(target = %target_addr, error = ?e, "upstream connection failed"),
+                                Err(e) => {
+                                    error!(target = %target_addr, error = ?e, "upstream connection failed");
+                                    metrics.add_failures_total();
+                                },
                             }
                             // Permit is automatically dropped here, returning to pool
+                            metrics.remove_active_connection();
                         });
                     }
                     Err(e) => {
