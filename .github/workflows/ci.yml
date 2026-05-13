@@ -12,13 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Rust Check (Format)
         run: cargo fmt --check
+
       - name: Rust Check (Clippy)
         run: cargo clippy -- -D warnings
+        
       - name: Run Tests
         run: cargo test

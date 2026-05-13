@@ -84,8 +84,8 @@ impl MetricsManager {
             .iter()
             .position(|&le| duration <= le)
             .unwrap_or(BUCKET_BOUNDARIES_US.len());
-        for i in 0..=idx {
-            buckets[i].fetch_add(1, Ordering::Relaxed);
+        for bucket in buckets.iter().take(idx + 1) {
+            bucket.fetch_add(1, Ordering::Relaxed);
         }
     }
 
@@ -97,9 +97,11 @@ impl MetricsManager {
 
         let mut transport_latency_seconds = [0u64; BUCKET_COUNT];
 
-        for i in 0..BUCKET_COUNT {
-            transport_latency_seconds[i] =
-                self.transport_latency_seconds[i].load(Ordering::Relaxed);
+        for (dest, src) in transport_latency_seconds
+            .iter_mut()
+            .zip(&self.transport_latency_seconds)
+        {
+            *dest = src.load(Ordering::Relaxed);
         }
 
         MetricsSnapshot {
@@ -110,7 +112,7 @@ impl MetricsManager {
             connection_attempts_delta: self.connection_attempts_total.load(Ordering::Relaxed),
             connection_failures_delta: self.connection_failures_total.load(Ordering::Relaxed),
             bytes_transmitted_delta: self.bytes_transmitted_total.load(Ordering::Relaxed),
-            transport_latency_seconds: transport_latency_seconds,
+            transport_latency_seconds,
         }
     }
 
