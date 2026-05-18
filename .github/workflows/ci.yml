@@ -1,4 +1,4 @@
-name: ntl-tentacle CI
+name: ntu-tentacle CI
 
 on:
   push:

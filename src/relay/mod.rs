@@ -36,7 +36,7 @@ impl Relay {
 
     fn spawn_reporter(&self) {
         let metrics = self.metrics.clone();
-        let socket_path = "/var/run/nautilus/services/metrics.sock".to_string();
+        let socket_path = "/var/run/nautrouds/services/metrics.sock".to_string();
         let mut metrics_interval = interval(Duration::from_secs(self.cfg.metrics_interval_secs));
 
         tokio::spawn(async move {
@@ -63,7 +63,7 @@ impl Relay {
                     .context("failed to write to metrics socket")?;
 
                 metrics.commit_sent_metrics(&snap);
-                debug!("metrics successfully pushed to nautilus");
+                debug!("metrics successfully pushed to nautrouds");
                 Ok(())
             }
             Err(e) => Err(anyhow::anyhow!("metrics socket unavailable: {}", e)),

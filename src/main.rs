@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
-    tracing::info!("ntl-tentacle starting");
+    tracing::info!("ntu-tentacle starting");
 
     let cfg = match config::Config::load() {
         Ok(c) => c,
