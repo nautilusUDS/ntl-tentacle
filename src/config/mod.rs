@@ -16,37 +16,37 @@ impl Config {
     pub fn load() -> Result<Self> {
         tracing::debug!("loading configuration from environment variables");
 
-        let service_name = env::var("NAUTILUS_SERVICE_NAME")
-            .or_else(|_| env::var("NAUTILUS_SERVICE_ID"))
+        let service_name = env::var("NAUTROUDS_SERVICE_NAME")
+            .or_else(|_| env::var("NAUTROUDS_SERVICE_ID"))
             .map_err(|_| {
                 tracing::error!(
-                    var = "NAUTILUS_SERVICE_NAME",
+                    var = "NAUTROUDS_SERVICE_NAME",
                     "missing required environment variable"
                 );
-                anyhow::anyhow!("NAUTILUS_SERVICE_NAME is required")
+                anyhow::anyhow!("NAUTROUDS_SERVICE_NAME is required")
             })?;
 
-        let target_addr = env::var("NAUTILUS_TARGET_ADDR").map_err(|_| {
+        let target_addr = env::var("NAUTROUDS_TARGET_ADDR").map_err(|_| {
             tracing::error!(
-                var = "NAUTILUS_TARGET_ADDR",
+                var = "NAUTROUDS_TARGET_ADDR",
                 "missing required environment variable"
             );
-            anyhow::anyhow!("NAUTILUS_TARGET_ADDR is required")
+            anyhow::anyhow!("NAUTROUDS_TARGET_ADDR is required")
         })?;
 
         let socket_name =
-            env::var("NAUTILUS_SOCKET_NAME").unwrap_or_else(|_| "node-0.sock".to_string());
+            env::var("NAUTROUDS_SOCKET_NAME").unwrap_or_else(|_| "node-0.sock".to_string());
 
-        let base_dir = env::var("NAUTILUS_SERVICES_DIR")
-            .unwrap_or_else(|_| "/var/run/nautilus/services".to_string())
+        let base_dir = env::var("NAUTROUDS_SERVICES_DIR")
+            .unwrap_or_else(|_| "/var/run/nautrouds/services".to_string())
             .into();
 
-        let max_connections = env::var("NAUTILUS_MAX_CONNS")
+        let max_connections = env::var("NAUTROUDS_MAX_CONNS")
             .unwrap_or_else(|_| "1024".to_string())
             .parse()
             .unwrap_or(1024);
 
-        let metrics_interval_secs = env::var("NAUTILUS_METRICS_INTERVAL_SECS")
+        let metrics_interval_secs = env::var("NAUTROUDS_METRICS_INTERVAL_SECS")
             .unwrap_or_else(|_| "15".to_string())
             .parse()
             .unwrap_or(15);

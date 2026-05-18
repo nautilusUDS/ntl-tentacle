@@ -308,7 +308,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
-name = "ntl-tentacle"
+name = "ntu-tentacle"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -635,7 +635,7 @@ dependencies = [
 [[package]]
 name = "tentacle-metrics"
 version = "0.1.0"
-source = "git+https://github.com/nautilusUDS/tentacle-metrics.git?tag=v1.0.0#3a2ac0188014aec63b5e5b24450eb4ace4a64783"
+source = "git+https://github.com/nautrouds/tentacle-metrics.git?tag=v1.1.0#b0e33d9b12d9de3f2028d96599a0e9d2518ffaa7"
 dependencies = [
  "prost",
  "prost-build",
