@@ -34,12 +34,12 @@ impl Config {
             .or_else(|_| env::var("TARGET"))
             .or_else(|_| env::var("ADDR"))
             .map_err(|_| {
-            tracing::error!(
-                var = "NAUTROUDS_TARGET_ADDR",
-                "missing required environment variable"
-            );
-            anyhow::anyhow!("NAUTROUDS_TARGET_ADDR is required")
-        })?;
+                tracing::error!(
+                    var = "NAUTROUDS_TARGET_ADDR",
+                    "missing required environment variable"
+                );
+                anyhow::anyhow!("NAUTROUDS_TARGET_ADDR is required")
+            })?;
 
         let socket_name =
             env::var("NAUTROUDS_SOCKET_NAME").unwrap_or_else(|_| "node-0.sock".to_string());
