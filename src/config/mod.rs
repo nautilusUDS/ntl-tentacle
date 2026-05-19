@@ -18,6 +18,9 @@ impl Config {
 
         let service_name = env::var("NAUTROUDS_SERVICE_NAME")
             .or_else(|_| env::var("NAUTROUDS_SERVICE_ID"))
+            .or_else(|_| env::var("SERVICE_NAME"))
+            .or_else(|_| env::var("SERVICE"))
+            .or_else(|_| env::var("NAME"))
             .map_err(|_| {
                 tracing::error!(
                     var = "NAUTROUDS_SERVICE_NAME",
@@ -26,7 +29,11 @@ impl Config {
                 anyhow::anyhow!("NAUTROUDS_SERVICE_NAME is required")
             })?;
 
-        let target_addr = env::var("NAUTROUDS_TARGET_ADDR").map_err(|_| {
+        let target_addr = env::var("NAUTROUDS_TARGET_ADDR")
+            .or_else(|_| env::var("TARGET_ADDR"))
+            .or_else(|_| env::var("TARGET"))
+            .or_else(|_| env::var("ADDR"))
+            .map_err(|_| {
             tracing::error!(
                 var = "NAUTROUDS_TARGET_ADDR",
                 "missing required environment variable"
